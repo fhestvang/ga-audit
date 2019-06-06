@@ -1,56 +1,67 @@
-library(googleAnalyticsR)
-library(tidyverse)
-library(googlesheets)
-library(magrittr)
-library(stringr)
-library(httr)
-
-## SOURCE VARIABLES
-source("variables.R")
-
-## AUTHENTICATION
-ga_auth()
-gs_auth()
-
 ## Create new SS
 gs_new(title = SS_NAME)
 ss <- gs_title(SS_NAME)
 
 ## Create Acount Overview with views
-ac_list <- ga_account_list() %>% filter(accountId == ACCOUNT_ID)
+ac_list <- ga_account_list() %>% filter(accountId == ACCOUNT_ID) %>% select(accountName, accountId, webPropertyName, webPropertyId, viewName, viewId)
+colnames(ac_list) <- c("Account Name", "Account ID", "Property Name", "Property ID", "View Name", "View ID")
+
 ## Input account overview
 ss %>% gs_ws_new(ws_title = SS_ACCOUNT_TITLE , input = ac_list)
 
 ## Get Page Report from Roll-up account
-fetchData <- function(ACCOUNT_ID, PROPERTY_ID, VIEW_ID) {
-  
-  ga_view(accountId = ACCOUNT_ID, webPropertyId = PROPERTY_ID, profileId = VIEW_ID)
+fetchData <- function(VIEW_ID) {
   
   df <- google_analytics(viewId = VIEW_ID, 
                          date_range = DATE_RANGE, 
                          dimensions = c("hostname", "pagePath"), 
                          metrics = "pageviews", 
                          anti_sample = TRUE)
-  df
-  ## ANALYSIS
+ 
+  
+  ## QUERY PARAMETERS
   df_q <- df %>% filter(!grepl("not set", hostname))
   df_q %<>% filter(grepl("(\\?|&)", pagePath))
   
-  ll <- sapply(df_q$pagePath, function(x) parse_url(x)$query %>% unlist() %>% names()) %>% unlist()
-  ll %<>% tbl_df()
-  colnames(ll) <- "Query"
-  ll
-  outp <- ll %>% group_by(Query) %>% tally() %>% mutate(share = n/sum(n)*100) %>% arrange(-n)
+  ## change sapply, map_df() purrr
   
-  return(outp)
+  ll <- sapply(df_q$pagePath, function(x) parse_url(x)$query %>% unlist() %>% names()) %>% unlist()
+  
+  ll %<>% tbl_df()
+  
+  colnames(ll) <- "Query"
+  
+  ll %>% group_by(Query) %>% tally() %>% mutate(share = n/sum(n)*100) %>% arrange(-n)
+  
 }
 
-output <- fetchData(ACCOUNT_ID, PROPERTY_ID, VIEW_ID)
+## try catch
+## testthat
 
-pushData <- function(){
-  ss %>% gs_ws_new(ws_title = SS_QUERYLIST_TITLE, input = output)
+
+output <- fetchData(VIEW_ID)
+
+pushData <- function(wsTitle){
+  ss %>% gs_ws_new(ws_title = wsTitle, input = output)
 }
 
 pushData()
+
+## HOSTNAME DATA
+
+hostname <-  google_analytics(viewId = VIEW_ID, 
+                       date_range = DATE_RANGE, 
+                       dimensions = c("hostname"), 
+                       metrics = "pageviews", 
+                       anti_sample = TRUE)
+colnames(hostname) <- c("Hostname", "Pageviews")
+
+
+
+pushData()
+
+ss %>% gs_ws_delete(ws = 1)
+
+# gs_delete(ss)
 
 gs_browse(ss)
