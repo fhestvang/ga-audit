@@ -5,10 +5,10 @@ library(magrittr)
 library(stringr)
 library(httr)
 
-source("data_fetching.R")
+# source("data_fetching.R")
 
 ## VARIABLES
-SS_NAME = "Børnetelefonen"
+SS_NAME = "Hello"
 SS_ACCOUNT_TITLE = "Account Overview"
 SS_QUERYLIST_TITLE = "Query Parameters"
 ACCOUNT_ID <- "18036718"
@@ -21,8 +21,8 @@ ga_auth()
 gs_auth()
 
 ## 
-output <- fetchData(VIEW_ID)
+# output <- fetchData(VIEW_ID)
 
 ## pushData()
 
-pushData(wsTitle = SS_QUERYLIST_TITLE)
+# pushData(wsTitle = SS_QUERYLIST_TITLE)
